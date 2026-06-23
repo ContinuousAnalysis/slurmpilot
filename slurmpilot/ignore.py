@@ -35,6 +35,9 @@ def make_ignore(root: Path):
         for name in names:
             rel_path = (rel_dir / name).as_posix()
             is_dir = (src_path / name).is_dir()
+            if name.startswith("."):
+                ignored.add(name)
+                continue
             # gitwildmatch requires a trailing slash to match directory-only patterns.
             if spec.match_file(rel_path) or (
                 is_dir and spec.match_file(rel_path + "/")
