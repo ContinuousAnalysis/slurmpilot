@@ -70,11 +70,16 @@ class MockSlurm:
         script_path = Path(script_path)
         script_text = script_path.read_text()
 
+        # Merge caller-supplied vars on top of the current environment so the
+        # subprocess inherits PATH and other essentials.
+        merged_env = {**os.environ, **(env or {})}
+        task_id = merged_env.get("SLURM_ARRAY_TASK_ID")
+
         stdout_path = self._resolve_log_path(
-            _parse_sbatch_directive(script_text, "output"), cwd
+            _parse_sbatch_directive(script_text, "output"), cwd, task_id
         )
         stderr_path = self._resolve_log_path(
-            _parse_sbatch_directive(script_text, "error"), cwd
+            _parse_sbatch_directive(script_text, "error"), cwd, task_id
         )
 
         for p in (stdout_path, stderr_path):
@@ -90,7 +95,7 @@ class MockSlurm:
                 cwd=cwd,
                 stdout=stdout_file,
                 stderr=stderr_file,
-                env=env,
+                env=merged_env,
             )
         finally:
             # Close parent's copies of the fds; child keeps its own.
@@ -151,9 +156,14 @@ class MockSlurm:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _resolve_log_path(value: str | None, cwd: Path | None) -> Path | None:
+    def _resolve_log_path(
+        value: str | None, cwd: Path | None, task_id: str | None = None
+    ) -> Path | None:
         if value is None:
             return None
+        # Expand %a (Slurm's array task ID placeholder) if we know the task ID.
+        if task_id is not None:
+            value = value.replace("%a", task_id)
         p = Path(value)
         if cwd is not None and not p.is_absolute():
             return cwd / p

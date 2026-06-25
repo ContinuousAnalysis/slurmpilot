@@ -32,10 +32,16 @@ def _write_preamble(f: io.StringIO, job_info: JobCreationInfo) -> None:
         f.write(f"#SBATCH {opt}\n")
 
     sbatch(f"--job-name={job_info.jobname}")
-    sbatch("--output=logs/stdout")
-    sbatch("--error=logs/stderr")
+    is_job_array = isinstance(job_info.python_args, list)
+    if is_job_array:
+        # write logs into specific files for job-array
+        sbatch("--output=logs/%a.stdout")
+        sbatch("--error=logs/%a.stderr")
+    else:
+        sbatch("--output=logs/stdout")
+        sbatch("--error=logs/stderr")
     sbatch(f"--cpus-per-task={job_info.n_cpus}")
-    if isinstance(job_info.python_args, list):
+    if is_job_array:
         n_tasks = len(job_info.python_args) - 1
         array_spec = f"0-{n_tasks}"
         if job_info.n_concurrent_jobs is not None:

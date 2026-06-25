@@ -422,7 +422,7 @@ class TestJobArray:
         job.env = {"SLURM_ARRAY_TASK_ID": "0"}
         jobid = slurm.schedule_job(job)
         _wait(slurm, jobid)
-        stdout, _ = slurm.log("arrayjob")
+        stdout, _ = slurm.log("arrayjob", index=0)
         assert "hello" in stdout
         assert slurm.status(["arrayjob"]) == ["COMPLETED"]
 
@@ -433,7 +433,7 @@ class TestJobArray:
         job.env = {"SLURM_ARRAY_TASK_ID": "1"}
         jobid = slurm.schedule_job(job)
         _wait(slurm, jobid)
-        stdout, _ = slurm.log("arrayjob2")
+        stdout, _ = slurm.log("arrayjob2", index=1)
         assert "world" in stdout
 
     def test_n_concurrent_jobs_without_list_raises(self, tmp_path):

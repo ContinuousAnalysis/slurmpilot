@@ -116,8 +116,9 @@ def _make_sp(jobname: str, config: Config) -> tuple[SlurmPilot, str]:
 
 def cmd_log(args: argparse.Namespace, config: Config) -> None:
     sp, jobname = _make_sp(args.jobname, config)
+    index = getattr(args, "array_index", None)
     print(f"Log for {_jobname(jobname)}:")
-    stdout, stderr = sp.log(jobname)
+    stdout, stderr = sp.log(jobname, index=index)
     if stdout:
         print(stdout, end="")
     if stderr:
@@ -434,7 +435,14 @@ def main(config: Config | None = None) -> None:
     parser = argparse.ArgumentParser(prog="sp", description="SlurmPilot CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    p = subparsers.add_parser("log", help=_DESCRIPTIONS["log"])
+    p.add_argument("jobname", nargs="?", default=None, help="Job name (defaults to latest)")
+    p.add_argument("--array-index", dest="array_index", type=int, default=None,
+                   metavar="N", help="Task index for job arrays (reads logs/N.stdout)")
+
     for name in _COMMANDS:
+        if name == "log":
+            continue  # registered separately above with --array-index
         p = subparsers.add_parser(name, help=_DESCRIPTIONS[name])
         p.add_argument("jobname", nargs="?", default=None, help="Job name (defaults to latest)")
 

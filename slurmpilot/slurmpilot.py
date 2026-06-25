@@ -225,7 +225,8 @@ class SlurmPilot:
         For mock/local clusters the logs are read directly from the local job
         directory.  For SSH clusters the log folder is downloaded first.
 
-        :param index: task index for job arrays (not yet supported).
+        :param index: task index for job arrays; reads ``logs/{index}.stdout``
+            and ``logs/{index}.stderr`` when provided.
         :return: ``(stdout, stderr)``; empty strings if not yet written.
         """
         local = JobPath(jobname=jobname, root=self.config.local_slurmpilot_path())
@@ -234,8 +235,15 @@ class SlurmPilot:
         if cluster is not None and cluster not in (MOCK_CLUSTER, LOCAL_CLUSTER):
             self._download_logs(cluster, jobname, local)
 
-        stdout = local.stdout.read_text(errors="replace") if local.stdout.exists() else ""
-        stderr = local.stderr.read_text(errors="replace") if local.stderr.exists() else ""
+        if index is not None:
+            stdout_path = local.log_dir / f"{index}.stdout"
+            stderr_path = local.log_dir / f"{index}.stderr"
+        else:
+            stdout_path = local.stdout
+            stderr_path = local.stderr
+
+        stdout = stdout_path.read_text(errors="replace") if stdout_path.exists() else ""
+        stderr = stderr_path.read_text(errors="replace") if stderr_path.exists() else ""
         return stdout, stderr
 
     # ------------------------------------------------------------------
