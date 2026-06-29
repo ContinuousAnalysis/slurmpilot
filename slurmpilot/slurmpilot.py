@@ -238,9 +238,19 @@ class SlurmPilot:
         if index is not None:
             stdout_path = local.log_dir / f"{index}.stdout"
             stderr_path = local.log_dir / f"{index}.stderr"
-        else:
+        elif local.stdout.exists():
             stdout_path = local.stdout
             stderr_path = local.stderr
+        else:
+            # Array job: pick the highest-numbered task log available.
+            candidates = sorted(local.log_dir.glob("*.stdout"), key=lambda p: int(p.stem))
+            if candidates:
+                latest = int(candidates[-1].stem)
+                stdout_path = local.log_dir / f"{latest}.stdout"
+                stderr_path = local.log_dir / f"{latest}.stderr"
+            else:
+                stdout_path = local.stdout
+                stderr_path = local.stderr
 
         stdout = stdout_path.read_text(errors="replace") if stdout_path.exists() else ""
         stderr = stderr_path.read_text(errors="replace") if stderr_path.exists() else ""

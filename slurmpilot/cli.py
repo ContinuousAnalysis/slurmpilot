@@ -169,12 +169,7 @@ def cmd_path(args: argparse.Namespace, config: Config) -> None:
 
 def cmd_list_jobs(args: argparse.Namespace, config: Config) -> None:
     jobs_root = config.local_slurmpilot_path() / "jobs"
-    metadatas = list_metadatas(jobs_root)
-
-    if args.clusters:
-        metadatas = [m for m in metadatas if m.cluster in args.clusters]
-
-    metadatas = metadatas[: args.n]
+    metadatas = list_metadatas(jobs_root, n_jobs=args.n, clusters=args.clusters or None)
     if not metadatas:
         print("No jobs found.")
         return

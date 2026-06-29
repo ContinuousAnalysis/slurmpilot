@@ -32,25 +32,44 @@ class JobMetadata:
         )
 
 
-def list_metadatas(jobs_root: Path) -> list["JobMetadata"]:
-    """Return all JobMetadata found under ``jobs_root``, sorted newest-first.
+def _search_metadata_recursively(jobs_root: Path) -> list["JobMetadata"]:
+    """Walk ``jobs_root``, stopping descent at any directory that contains ``metadata.json``.
 
-    Uses a manual traversal that stops descending into a directory as soon as
-    ``metadata.json`` is found, avoiding redundant scanning of ``logs/``,
-    ``src/``, and other subdirectories inside each job folder.
+    Only returns entries whose jobname matches the path relative to jobs_root (skips moved jobs).
     """
-    if not jobs_root.exists():
-        return []
-    metadatas = []
+    results = []
     stack = [jobs_root]
     while stack:
         cur = stack.pop()
         candidate = cur / "metadata.json"
         if candidate.exists():
             try:
-                metadatas.append(JobMetadata.from_json(candidate.read_text()))
-            except Exception:
+                jobmetadata = JobMetadata.from_json(candidate.read_text())
+                # Skip moved jobs: relative path from jobs_root must match jobname
+                if candidate.parent.relative_to(jobs_root) == Path(jobmetadata.jobname):
+                    results.append(jobmetadata)
+            except json.JSONDecodeError:
+                print(f"Error while reading {candidate}")
+            except (TypeError, KeyError):
                 pass
         else:
-            stack.extend(child for child in cur.iterdir() if child.is_dir())
-    return sorted(metadatas, key=lambda m: m.date, reverse=True)
+            for child in cur.iterdir():
+                if child.is_dir():
+                    stack.append(child)
+    return sorted(results, key=lambda m: m.date, reverse=True)
+
+
+def list_metadatas(
+    jobs_root: Path,
+    n_jobs: int | None = None,
+    clusters: list[str] | None = None,
+) -> list["JobMetadata"]:
+    """Return JobMetadata found under ``jobs_root``, sorted newest-first by creation date."""
+    if not jobs_root.exists():
+        return []
+    results = _search_metadata_recursively(jobs_root)
+    if clusters is not None:
+        results = [m for m in results if m.cluster in clusters]
+    if n_jobs is not None:
+        results = results[:n_jobs]
+    return results
